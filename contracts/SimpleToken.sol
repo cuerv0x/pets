@@ -24,7 +24,7 @@ contract SimpleToken {
 
   function transfer(address to, uint256 amount) external {
     //Aseguramos que el que manda tiene tokens
-    require(balances[msg.sender] >= amount, "Not enought tokens");
+    require(balances[msg.sender] >= amount, "No tienes suficientes tokens");
     if (msg.sender != to){
       console.log("Transferring %s tokens: %s => %s", amount, msg.sender,to);
       balances[msg.sender] -= amount;

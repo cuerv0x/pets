@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/aaronchock/React/petshop/contracts/SimpleToken.sol": {
-      "lastModificationDate": 1669583445022,
-      "contentHash": "de87c7f5347d3846095a5b696ae654f0",
+      "lastModificationDate": 1676730669310,
+      "contentHash": "b60fc97826f9491fc5d204b45c75f304",
       "sourceName": "contracts/SimpleToken.sol",
       "solcConfig": {
         "version": "0.8.17",
