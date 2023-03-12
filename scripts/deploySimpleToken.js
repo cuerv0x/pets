@@ -11,9 +11,7 @@ async function main() {
   console.log(`Deployed SimpleToken at: ${simpleToken.address}`);
   console.log(`Deployer now has a balance of: ${await deployer.getBalance()}`);
 
-  console.log(
-    `Current block number: ${await ethers.provider.getBlockNumber()}`
-  );
+  console.log(`Current block number: ${await ethers.provider.getBlockNumber()}`);
 }
 
 main()
