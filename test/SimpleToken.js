@@ -1,104 +1,122 @@
+// This is an example test file. Hardhat will run every *.js file in `test/`,
+// so feel free to add new ones.
+
+// Hardhat tests are normally written with Mocha and Chai.
+
+// Optional: `ethers` is injected in global scope automatically.
+// TODO: Is this because of `require("@nomicfoundation/hardhat-toolbox")` in `hardhat.config.js`?
 const { ethers } = require("hardhat");
+
+// We import Chai to use its asserting functions here.
+// See also: https://hardhat.org/hardhat-runner/plugins/nomicfoundation-hardhat-chai-matchers
 const { expect } = require("chai");
+
+// We use `loadFixture` to share common setups (or fixtures) between tests.
+// Using this simplifies your tests and makes them run faster, by taking
+// advantage of Hardhat Network's snapshot functionality.
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
+// `describe` is a Mocha function that allows you to organize your tests.
+// Having your tests organized makes debugging them easier. All Mocha
+// functions are available in the global scope.
+//
+// `describe` receives the name of a section of your test suite, and a
+// callback. The callback must define the tests of that section. This callback
+// can't be an async function.
 describe("SimpleToken contract", function () {
+
+  // A fixture is a setup function that is run only the first time it's invoked.
+  // On subsequent invocations, instead of re-running it, Hardhat will reset the state
+  // of the network to what it was at the point after the fixture was initially executed.
   async function deploySimpleTokenFixture() {
     const SimpleToken = await ethers.getContractFactory("SimpleToken");
-    const [owner, first_address, second_address] = await ethers.getSigners();
+    const [owner, addr1, addr2] = await ethers.getSigners();
 
+    // To deploy our contract, we just have to call Token.deploy() and await
+    // its deployed() method, which happens onces its transaction has been mined.
     const simpleToken = await SimpleToken.deploy();
     await simpleToken.deployed();
 
-    return { SimpleToken, simpleToken, owner, second_address, first_address };
+    // Fixtures can return anything you consider useful for your tests.
+    return { SimpleToken, simpleToken, owner, addr1, addr2 };
   }
 
+
+  // You can nest describe calls to create subsections.
   describe("Deployment", function () {
+    // `it` is another Mocha function. This is the one you use to define each
+    // of your tests. It receives the test name, and a callback function.
+    // If the callback function is async, Mocha will `await` it.
     it("should set the right owner", async function () {
-      const { simpleToken, owner } = await loadFixture(
-        deploySimpleTokenFixture
-      );
+      const { simpleToken, owner } = await loadFixture(deploySimpleTokenFixture);
       expect(await simpleToken.owner()).to.equal(owner.address);
     });
 
     it("should assign the total supply of tokens to the owner", async function () {
-      const { simpleToken, owner } = await loadFixture(
-        deploySimpleTokenFixture
-      );
+      const { simpleToken, owner } = await loadFixture(deploySimpleTokenFixture);
       const ownerBalance = await simpleToken.balanceOf(owner.address);
-      expect(await simpleToken.owner()).to.equal(owner.address);
+      expect(await simpleToken.totalSupply()).to.equal(ownerBalance);
     });
 
     it("should initialize the contract correctly", async function () {
       const { simpleToken } = await loadFixture(deploySimpleTokenFixture);
-      expect(await simpleToken.name()).to.equal("Mi Simple Token");
+      expect(await simpleToken.name()).to.equal("My Simple Token");
       expect(await simpleToken.symbol()).to.equal("MST");
       expect(await simpleToken.totalSupply()).to.equal(1000000);
     });
   });
 
+
   describe("Transactions", function () {
+
     it("should transfer tokens between accounts", async function () {
-      const { simpleToken, owner, first_address, second_address } =
-        await loadFixture(deploySimpleTokenFixture);
+      const { simpleToken, owner, addr1, addr2 } = await loadFixture(deploySimpleTokenFixture);
 
-      expect(await simpleToken.balanceOf(first_address.address)).to.equal(0);
-      expect(await simpleToken.balanceOf(second_address.address)).to.equal(0);
+      expect(await simpleToken.balanceOf(addr1.address)).to.equal(0);
+      expect(await simpleToken.balanceOf(addr2.address)).to.equal(0);
 
-      await expect(
-        simpleToken.transfer(first_address.address, 25)
-      ).to.changeTokenBalances(simpleToken, [owner, first_address], [-25, 25]);
+      // Transfer 50 tokens from owner to addr1.
+      await expect(simpleToken.transfer(addr1.address, 50))
+        .to.changeTokenBalances(simpleToken, [owner, addr1], [-50, 50]);
 
-      await expect(
-        simpleToken.transfer(first_address.address, 25)
-      ).to.changeTokenBalances(
-        simpleToken,
-        [first_address, second_address],
-        [-25, +25]
-      );
+      // Transfer 50 tokens from addr1 to addr2.
+      await expect(simpleToken.connect(addr1).transfer(addr2.address, 50))
+        .to.changeTokenBalances(simpleToken, [addr1, addr2], [-50, +50]);
     });
 
     it("should emit Transfer events", async function () {
-      const { simpleToken, owner, first_address, second_address } =
-        await loadFixture(deploySimpleTokenFixture);
+      const { simpleToken, owner, addr1, addr2 } = await loadFixture(deploySimpleTokenFixture);
 
-      await expect(simpleToken.transfer(first_address.address, 25))
-        .to.emit(simpleToken, "Transfer")
-        .withArgs(owner.address, first_address, 25);
+      // Transfer 50 tokens from owner to addr1.
+      await expect(simpleToken.transfer(addr1.address, 50))
+        .to.emit(simpleToken, "Transfer").withArgs(owner.address, addr1.address, 50);
 
-      await expect(
-        simpleToken.connect(first_address).transfer(second_address, 25)
-      )
-        .to.emit(simpleToken, "Transfer")
-        .withArgs(first_address.address, second_address.address, 25);
+      // Transfer 50 tokens from addr1 to addr2.
+      await expect(simpleToken.connect(addr1).transfer(addr2.address, 50))
+        .to.emit(simpleToken, "Transfer").withArgs(addr1.address, addr2.address, 50);
     });
 
     it("should fail if sender doesn't have enough tokens", async function () {
-      const { simpleToken, owner, first_address } = await loadFixture(
-        deploySimpleTokenFixture
-      );
+      const { simpleToken, owner, addr1 } = await loadFixture(deploySimpleTokenFixture);
       const initialOwnerBalance = await simpleToken.balanceOf(owner.address);
 
-      await expect(
-        simpleToken.connect(first_address).transfer(owner.address, 1)
-      ).to.be.revertedWith("No tienes suficientes tokens");
+      // Try to send 1 token from addr1 (0 tokens) to owner (1000 tokens).
+      // `require` will evaluate false and revert the transaction.
+      await expect(simpleToken.connect(addr1).transfer(owner.address, 1))
+        .to.be.revertedWith("Not enough tokens");
 
-      expect(await simpleToken.balanceOf(owner.address)).to.equal(
-        initialOwnerBalance
-      );
+      // Owner balance shouldn't have changed.
+      expect(await simpleToken.balanceOf(owner.address)).to.equal(initialOwnerBalance);
     });
 
     it("should do nothing if transfer to self", async function () {
-      const { simpleToken, owner } = await loadFixture(
-        deploySimpleTokenFixture
-      );
-      await expect(
-        simpleToken.transfer(owner.address, 1)
-      ).to.changeTokenBalances(simpleToken, [owner], [0]);
-      await expect(simpleToken.transfer(owner.address, 1)).to.not.emit(
-        simpleToken,
-        "Transfer"
-      );
+      const { simpleToken, owner } = await loadFixture(deploySimpleTokenFixture);
+      await expect(simpleToken.transfer(owner.address, 1))
+        .to.changeTokenBalances(simpleToken, [owner], [0]);
+      await expect(simpleToken.transfer(owner.address, 1))
+        .to.not.emit(simpleToken, "Transfer");
     });
+
   });
+
 });
